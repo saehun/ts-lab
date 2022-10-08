@@ -11,5 +11,5 @@
     "experimentalDecorators": true,
     "lib": ["esnext"]
   },
-  "include": ["src/**/*", ".script/**/*"]
+  "include": [".script/**/*"]
 }

@@ -5,7 +5,7 @@ async function main(packageName: string) {
     console.log(`Usage: pnpm new <package-name>`);
     process.exit(0);
   }
-  await fs.copy('./.scripts/template', `./packages/${packageName}`, { recursive: true, errorOnExist: true });
+  await fs.copy('./.script/template', `./packages/${packageName}`, { recursive: true, errorOnExist: true });
   process.chdir(`./packages/${packageName}`);
 
   await edit('./package.json', `{{packageName}}`, packageName);
