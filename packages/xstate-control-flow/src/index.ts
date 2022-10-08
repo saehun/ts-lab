@@ -1,1 +1,3 @@
-console.log('Hello xstate-control-flow');
+import { createMachine } from 'xstate';
+
+const machine = createMachine({});
