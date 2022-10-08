@@ -6,11 +6,10 @@
     "moduleResolution": "node",
     "strictNullChecks": true,
     "sourceMap": true,
-    "outDir": "dist",
     "declaration": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "lib": ["esnext"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", ".script/**/*"]
 }
