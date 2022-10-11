@@ -5,10 +5,11 @@ import { mock } from 'jest-mock-extended';
 import { InvalidCaptchaError, InvalidCredentialError } from '../error';
 import { loginStateMachine } from '../login.state-machine';
 import { LoginService } from '../login.service';
+import { ServiceExecutor } from '../executor';
 
 describe('loginStateMachine and LoginService', () => {
   it('can execute', async () => {
-    const { loginService, mock } = createSuite();
+    const { start, mock } = createSuite();
 
     mock.prompter.promptCredential.mockResolvedValue({ id: 'mock_id', password: 'mock_pwd' });
     mock.captchaImageRequester.request.mockResolvedValue({ image: 'mock_image', token: 'mock_token' });
@@ -18,7 +19,7 @@ describe('loginStateMachine and LoginService', () => {
       user: { name: 'foo', email: 'foo@toss.im' },
     });
 
-    expect(await loginService.start()).toMatchInlineSnapshot(`
+    expect(await start()).toMatchInlineSnapshot(`
       {
         "sessionId": "JSESSIONID0123",
         "user": {
@@ -38,15 +39,13 @@ describe('loginStateMachine and LoginService', () => {
   });
 
   it('can retry failed credential', async () => {
-    const { loginService, mock } = createSuite();
+    const { start, mock } = createSuite();
 
     mock.prompter.promptCredential.mockResolvedValue({ id: 'mock_id', password: 'mock_pwd' });
     mock.captchaImageRequester.request.mockResolvedValue({ image: 'mock_image', token: 'mock_token' });
     mock.captchaMLRequester.request.mockResolvedValue({ answer: '00000' });
     mock.loginRequester.request.mockRejectedValue(new InvalidCredentialError());
-    await expect(() => loginService.start()).rejects.toMatchInlineSnapshot(
-      `[MaxCredentialRetryError: Invalid captcha]`
-    );
+    await expect(() => start()).rejects.toMatchInlineSnapshot(`[MaxCredentialRetryError: Invalid captcha]`);
 
     expect(mock.invoked).toMatchInlineSnapshot(`
       [
@@ -71,14 +70,14 @@ describe('loginStateMachine and LoginService', () => {
   });
 
   it('use prompt captcha when ML captcha failed 5 times', async () => {
-    const { loginService, mock } = createSuite();
+    const { start, mock } = createSuite();
 
     mock.prompter.promptCredential.mockResolvedValue({ id: 'mock_id', password: 'mock_pwd' });
     mock.prompter.promptCaptcha.mockResolvedValue({ value: '111111', reload: false });
     mock.captchaImageRequester.request.mockResolvedValue({ image: 'mock_image', token: 'mock_token' });
     mock.captchaMLRequester.request.mockResolvedValue({ answer: '00000' });
     mock.loginRequester.request.mockRejectedValue(new InvalidCaptchaError());
-    await expect(() => loginService.start()).rejects.toMatchInlineSnapshot(`[MaxCaptchaRetryError: Invalid captcha]`);
+    await expect(() => start()).rejects.toMatchInlineSnapshot(`[MaxCaptchaRetryError: Invalid captcha]`);
 
     expect(mock.invoked).toMatchInlineSnapshot(`
       [
@@ -123,15 +122,14 @@ describe('loginStateMachine and LoginService', () => {
   });
 
   it('can throw when unknown error occurred', async () => {
-    const { loginService, mock } = createSuite();
+    const { start, mock } = createSuite();
 
     mock.prompter.promptCredential.mockRejectedValue(new Error('Unknown error'));
-    await expect(() => loginService.start()).rejects.toMatchInlineSnapshot(`[Error: Unknown error]`);
+    await expect(() => start()).rejects.toMatchInlineSnapshot(`[Error: Unknown error]`);
   });
 });
 
 function createSuite() {
-  const loginMachineInterpreter = interpret(loginStateMachine);
   const invoked: string[] = [];
 
   const prompter = createClassMock(Prompter);
@@ -162,16 +160,15 @@ function createSuite() {
     });
   }
 
-  const loginService = new LoginService(
-    loginMachineInterpreter,
-    prompter,
-    loginRequester,
-    captchaMLRequester,
-    captchaImageRequester
-  );
+  async function start() {
+    const interpreter = interpret(loginStateMachine);
+    const service = new LoginService(prompter, loginRequester, captchaMLRequester, captchaImageRequester);
+    const serviceExecutor = new ServiceExecutor(interpreter, service);
+    return await serviceExecutor.start();
+  }
 
   return {
-    loginService,
+    start,
     mock: {
       prompter,
       loginRequester,

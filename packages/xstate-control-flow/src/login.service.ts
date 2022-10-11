@@ -1,4 +1,4 @@
-import { Interpreter } from 'xstate';
+import { StateHandler, Event, Context, Return } from './decorators';
 import {
   InvalidCaptchaError,
   InvalidCredentialError,
@@ -6,113 +6,87 @@ import {
   MaxCredentialRetryError,
   UnknownStateTransitionError,
 } from './error';
-import { LoginContext, LoginEvent, LoginTypeState } from './login.state-machine';
+import { LoginContext, LoginEvent } from './login.state-machine';
 import { Prompter } from './prompter';
 import { CaptchaImageRequester, CaptchaMLRequester, LoginRequester } from './requesters';
 
 export class LoginService {
   constructor(
-    private readonly interpreter: Interpreter<LoginContext, any, LoginEvent, LoginTypeState>,
     private readonly prompter: Prompter,
     private readonly loginRequester: LoginRequester,
     private readonly captchaMLRequester: CaptchaMLRequester,
     private readonly captchaImageRequester: CaptchaImageRequester
   ) {}
 
-  private setup(resolve: any, reject: any) {
-    this.interpreter.onTransition(async (state, event) => {
-      try {
-        if (state.matches('PROMPT_CREDENTIAL')) {
-          if (event.type === 'FAIL_CAPTCHA') {
-            await this.prompter.alert({ title: 'Id or password is invalid', description: 'check again' });
-          }
+  @StateHandler('PROMPT_CREDENTIAL')
+  async handlePromptCredential(@Event() event: LoginEvent) {
+    if (event.type === 'FAIL_CAPTCHA') {
+      await this.prompter.alert({ title: 'Id or password is invalid', description: 'check again' });
+    }
 
-          const credential = await this.prompter.promptCredential();
-          return this.interpreter.send({ type: 'NEXT', credential });
-        }
-
-        if (state.matches('ML_CAPTCHA')) {
-          const { image, token } = await this.captchaImageRequester.request();
-          const { answer: value } = await this.captchaMLRequester.request(image);
-          return this.interpreter.send({ type: 'NEXT', captcha: { token, value } });
-        }
-
-        if (state.matches('PROMPT_CAPTCHA')) {
-          if (event.type === 'FAIL_CAPTCHA') {
-            await this.prompter.alert({ title: 'Captcha is invalid', description: 'check again' });
-          }
-          const { image, token } = await this.captchaImageRequester.request();
-          const { value, reload } = await this.prompter.promptCaptcha(image);
-          if (reload) {
-            return this.interpreter.send({ type: 'RELOAD_CAPTCHA' });
-          }
-          return this.interpreter.send({ type: 'NEXT', captcha: { token, value } });
-        }
-
-        if (state.matches('LOGIN')) {
-          try {
-            const { id, password } = state.context.credential!;
-            const { value, token } = state.context.captcha!;
-            const result = await this.loginRequester.request({
-              id,
-              password,
-              captchaToken: token,
-              captchaValue: value,
-            });
-            return this.interpreter.send({ type: 'NEXT', result });
-          } catch (e) {
-            if (e instanceof InvalidCaptchaError) {
-              return this.interpreter.send({ type: 'FAIL_CAPTCHA' });
-            }
-            if (e instanceof InvalidCredentialError) {
-              return this.interpreter.send({ type: 'FAIL_CREDENTIAL' });
-            }
-            throw e;
-          }
-        }
-
-        if (state.matches('DONE')) {
-          resolve(state.context.result);
-          return;
-        }
-
-        if (state.matches('FAIL')) {
-          if (event.type === 'FAIL_CAPTCHA') {
-            throw new MaxCaptchaRetryError();
-            // return this.prompter.alert({
-            //   title: 'Captcha retry count exceeded',
-            //   description: 'Please try again later',
-            //   exit: true,
-            // });
-          }
-          if (event.type === 'FAIL_CREDENTIAL') {
-            throw new MaxCredentialRetryError();
-            // return this.prompter.alert({
-            //   title: 'Credential retry count exceed',
-            //   description: 'Please try again later',
-            //   exit: true,
-            // });
-          }
-          throw new UnknownStateTransitionError({ event, context: state.context });
-        }
-      } catch (e) {
-        reject(e);
-      }
-    });
+    const credential = await this.prompter.promptCredential();
+    return { type: 'NEXT', credential };
   }
 
-  async start() {
-    let resolve: any, reject: any;
-    const promise = new Promise((_resolve, _reject) => {
-      resolve = _resolve;
-      reject = _reject;
-    });
-    this.setup(resolve, reject);
-    this.interpreter.start();
+  @StateHandler('ML_CAPTCHA')
+  async handleMLCaptcha() {
+    const { image, token } = await this.captchaImageRequester.request();
+    const { answer: value } = await this.captchaMLRequester.request(image);
+    return { type: 'NEXT', captcha: { token, value } };
+  }
 
-    return await promise;
+  @StateHandler('PROMPT_CAPTCHA')
+  async handlePromptCaptcha(@Event() event: LoginEvent) {
+    if (event.type === 'FAIL_CAPTCHA') {
+      await this.prompter.alert({ title: 'Captcha is invalid', description: 'check again' });
+    }
+    const { image, token } = await this.captchaImageRequester.request();
+    const { value, reload } = await this.prompter.promptCaptcha(image);
+    if (reload) {
+      return { type: 'RELOAD_CAPTCHA' };
+    }
+    return { type: 'NEXT', captcha: { token, value } };
+  }
 
-    // const finalState = await waitFor(this.interpreter.start(), state => state.matches('DONE') || state.matches('FAIL'));
-    // return finalState.context.result;
+  @StateHandler('LOGIN')
+  async handleLogin(
+    @Context('credential') credential: LoginContext['credential'],
+    @Context('captcha') captcha: LoginContext['captcha']
+  ) {
+    try {
+      const { id, password } = credential;
+      const { value, token } = captcha;
+      const result = await this.loginRequester.request({
+        id,
+        password,
+        captchaToken: token,
+        captchaValue: value,
+      });
+      return { type: 'NEXT', result };
+    } catch (e) {
+      if (e instanceof InvalidCaptchaError) {
+        return { type: 'FAIL_CAPTCHA' };
+      }
+      if (e instanceof InvalidCredentialError) {
+        return { type: 'FAIL_CREDENTIAL' };
+      }
+      throw e;
+    }
+  }
+
+  @StateHandler('FAIL')
+  async handleFail(@Event() event: LoginEvent, @Context() context: LoginContext) {
+    if (event.type === 'FAIL_CAPTCHA') {
+      throw new MaxCaptchaRetryError();
+    }
+    if (event.type === 'FAIL_CREDENTIAL') {
+      throw new MaxCredentialRetryError();
+    }
+    throw new UnknownStateTransitionError({ event, context });
+  }
+
+  @StateHandler('DONE')
+  async handleDone(@Return() returnValue: (value: unknown) => void, @Context('result') result: LoginContext['result']) {
+    returnValue(result);
   }
 }
