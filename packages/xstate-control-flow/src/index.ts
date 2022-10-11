@@ -112,7 +112,7 @@ export const loginStateMachine = createMachine<LoginContext, LoginEvent, LoginTy
       on: {
         NEXT: {
           target: 'LOGIN',
-          actions: [saveCaptcha()],
+          actions: [saveCaptcha(), increaseRetry('captchaML')],
         },
       },
     },
@@ -120,7 +120,7 @@ export const loginStateMachine = createMachine<LoginContext, LoginEvent, LoginTy
       on: {
         NEXT: {
           target: 'LOGIN',
-          actions: [saveCaptcha()],
+          actions: [saveCaptcha(), increaseRetry('captcha')],
         },
         RELOAD_CAPTCHA: { target: 'PROMPT_CAPTCHA' },
       },
@@ -135,12 +135,10 @@ export const loginStateMachine = createMachine<LoginContext, LoginEvent, LoginTy
           {
             target: 'ML_CAPTCHA',
             cond: context => context.retry.captchaML < 5,
-            actions: [increaseRetry('captchaML')],
           },
           {
             target: 'PROMPT_CAPTCHA',
             cond: context => context.retry.captcha < 5,
-            actions: [increaseRetry('captcha')],
           },
           { target: 'FAIL' },
         ],
