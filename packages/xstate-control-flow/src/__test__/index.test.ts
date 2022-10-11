@@ -1,9 +1,10 @@
-import { loginStateMachine, LoginService } from '../index';
 import { CaptchaImageRequester, CaptchaMLRequester, LoginRequester } from '../requesters';
 import { Prompter } from '../prompter';
 import { interpret } from 'xstate';
 import { mock } from 'jest-mock-extended';
 import { InvalidCaptchaError, InvalidCredentialError } from '../error';
+import { loginStateMachine } from '../login.state-machine';
+import { LoginService } from '../login.service';
 
 describe('loginStateMachine and LoginService', () => {
   it('can execute', async () => {
