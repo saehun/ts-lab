@@ -3,7 +3,7 @@ import { Prompter } from '../prompter';
 import { interpret } from 'xstate';
 import { mock } from 'jest-mock-extended';
 import { InvalidCaptchaError, InvalidCredentialError } from '../error';
-import { loginStateMachine } from '../login.state-machine';
+import { loginStateMachine } from '../login.state';
 import { LoginService } from '../login.service';
 import { ServiceExecutor } from '../executor';
 

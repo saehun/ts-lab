@@ -6,7 +6,7 @@ import {
   MaxCredentialRetryError,
   UnknownStateTransitionError,
 } from './error';
-import { LoginContext, LoginEvent } from './login.state-machine';
+import { LoginContext, LoginEvent } from './login.state';
 import { Prompter } from './prompter';
 import { CaptchaImageRequester, CaptchaMLRequester, LoginRequester } from './requesters';
 

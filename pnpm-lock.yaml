@@ -38,11 +38,13 @@ importers:
       eslint: ^8.23.1
       jest: ^29.0.3
       jest-mock-extended: ^3.0.1
+      reflect-metadata: ^0.1.13
       rxjs: ^7.5.7
       ts-node: ^10.9.1
       typescript: ^4.8.4
       xstate: ^4.33.6
     dependencies:
+      reflect-metadata: 0.1.13
       rxjs: 7.5.7
       xstate: 4.33.6
     devDependencies:
@@ -2653,6 +2655,10 @@ packages:
   /react-is/18.1.0:
     resolution: {integrity: sha512-Fl7FuabXsJnV5Q1qIOQwx/sagGF18kogb4gpfcG4gjLBWO0WDiiz1ko/ExayuxE7InyQkBLkxRFG5oxY6Uu3Kg==}
     dev: true
+
+  /reflect-metadata/0.1.13:
+    resolution: {integrity: sha512-Ts1Y/anZELhSsjMcU605fU9RE4Oi3p5ORujwbIKXfWa+0Zxs510Qrmrce5/Jowq3cHSZSJqBjypxmHarc+vEWg==}
+    dev: false
 
   /regexpp/3.2.0:
     resolution: {integrity: sha512-pq2bWo9mVD43nbts2wGv17XLiNLya+GklZ8kaDLV2Z08gDCsGpnKn9BFMepvWuHCbyVvY7J5o5+BVvoQbmlJLg==}
