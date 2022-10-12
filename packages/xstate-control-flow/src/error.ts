@@ -70,8 +70,8 @@ export class MaxCredentialRetryError extends UserError {
 
 export class UnknownStateTransitionError extends SystemError {
   public readonly debugInfo: any;
-  constructor({ event, context }: { event: any; context: any }) {
+  constructor({ event, context, result }: { event: any; context: any; result: any }) {
     super('UnknownStateTransitionError occurred');
-    this.debugInfo = { event, context };
+    this.debugInfo = { event, context, result };
   }
 }

@@ -19,9 +19,7 @@ export type LoginContext = {
 };
 
 export type LoginEvent =
-  | { type: 'NEXT'; credential: LoginContext['credential'] }
-  | { type: 'NEXT'; captcha: LoginContext['captcha'] }
-  | { type: 'NEXT'; result: LoginContext['result'] }
+  | { type: 'NEXT' }
   | { type: 'RELOAD_CAPTCHA' }
   | { type: 'FAIL_CAPTCHA' }
   | { type: 'FAIL_CREDENTIAL' };
@@ -49,30 +47,22 @@ function initializeContext(): LoginContext {
   };
 }
 
-function saveCredential() {
-  return assign<LoginContext, Extract<LoginEvent, { type: 'NEXT'; credential: any }>>({
-    credential: (_, event) => event.credential,
-  });
-}
-
-function saveCaptcha() {
-  return assign<LoginContext, Extract<LoginEvent, { type: 'NEXT'; captcha: any }>>({
-    captcha: (_, event) => event.captcha,
-  });
-}
-
-function saveResult() {
-  return assign<LoginContext, Extract<LoginEvent, { type: 'NEXT'; result: any }>>({
-    result: (_, event) => event.result,
-  });
-}
-
 function increaseRetry(key: keyof LoginContext['retry'], amount = 1) {
   return assign<LoginContext, any>({
     retry: context => ({
       ...context.retry,
       [key]: context.retry[key] + amount,
     }),
+  });
+}
+
+function setContext() {
+  return assign((context: any, event: any) => {
+    if ('setContext' in event) {
+      return { ...context, [event.setContext.key]: event.setContext.value };
+    } else {
+      return context;
+    }
   });
 }
 
@@ -88,11 +78,11 @@ export const loginStateMachine = createMachine<LoginContext, LoginEvent, LoginTy
           {
             target: 'ML_CAPTCHA',
             cond: context => context.retry.captchaML < 5,
-            actions: [saveCredential()],
+            actions: [setContext()],
           },
           {
             target: 'PROMPT_CAPTCHA',
-            actions: [saveCredential()],
+            actions: [setContext()],
           },
         ],
       },
@@ -101,7 +91,7 @@ export const loginStateMachine = createMachine<LoginContext, LoginEvent, LoginTy
       on: {
         NEXT: {
           target: 'LOGIN',
-          actions: [saveCaptcha(), increaseRetry('captchaML')],
+          actions: [setContext(), increaseRetry('captchaML')],
         },
       },
     },
@@ -109,7 +99,7 @@ export const loginStateMachine = createMachine<LoginContext, LoginEvent, LoginTy
       on: {
         NEXT: {
           target: 'LOGIN',
-          actions: [saveCaptcha(), increaseRetry('captcha')],
+          actions: [setContext(), increaseRetry('captcha')],
         },
         RELOAD_CAPTCHA: { target: 'PROMPT_CAPTCHA' },
       },
@@ -118,7 +108,7 @@ export const loginStateMachine = createMachine<LoginContext, LoginEvent, LoginTy
       on: {
         NEXT: {
           target: 'DONE',
-          actions: [saveResult()],
+          actions: [setContext()],
         },
         FAIL_CAPTCHA: [
           {
@@ -149,3 +139,16 @@ export const loginStateMachine = createMachine<LoginContext, LoginEvent, LoginTy
     },
   },
 });
+
+/*
+{
+  "type": "NEXT",
+  "setContext": {
+    "key": "credential",
+    "value": {
+      "id": "foo",
+      "password": "bar"
+    }
+  }
+}
+*/
